@@ -1,35 +1,40 @@
 import { NextResponse } from 'next/server';
+import config from '../../config';
 
 export async function POST(req) {
   try {
     const { plan } = await req.json();
+
+    // Setting Harga
     const prices = { basic: 10000, premium: 40000 };
+    
+    if (!prices[plan]) {
+        return NextResponse.json({ error: "Plan tidak valid" }, { status: 400 });
+    }
 
-    // Gunakan VERCEL_URL atau domain custom lo
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}` 
-      : 'http://localhost:3000';
-
-    const res = await fetch('https://app.pakasir.com/api/invoice', {
+    // Request ke Pakasir
+    const res = await fetch(config.pakasir.url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${process.env.PAKASIR_API_KEY}`,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
+        'Authorization': `Bearer ${config.pakasir.secret}`,
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         amount: prices[plan],
-        description: `Order Panel ${plan}`,
-        metadata: { plan }, // Pastikan metadata dikirim sebagai object
-        callback_url: `${baseUrl}/api/webhook`
+        description: `Panel ${plan}`,
+        metadata: { plan },
+        callback_url: `${config.app.baseUrl}/api/webhook`
       })
     });
 
     const data = await res.json();
-    
-    if (!res.ok) throw new Error(data.message || 'Gagal konek ke Pakasir');
+
+    if (!res.ok) {
+        return NextResponse.json({ error: "Gagal dari Pakasir", details: data }, { status: 500 });
+    }
 
     return NextResponse.json({ payment_url: data.payment_url });
+
   } catch (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
