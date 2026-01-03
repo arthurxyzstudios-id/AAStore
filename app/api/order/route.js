@@ -1,26 +1,39 @@
 // app/api/order/route.js
 import { NextResponse } from 'next/server';
 import config from '../../config';
-import QRCode from 'qrcode'; 
+import QRCode from 'qrcode'; // Pastikan sudah 'npm install qrcode'
 
 export async function POST(req) {
   try {
-    const { plan } = await req.json();
-    const prices = { basic: 10000, premium: 40000 };
+    const { plan, name, email } = await req.json(); // Nerima nama & email user
     
-    if (!prices[plan]) return NextResponse.json({ error: "Plan tidak valid" }, { status: 400 });
+    const product = config.products[plan];
+    if (!product) return NextResponse.json({ error: "Paket tidak valid" }, { status: 400 });
 
-    const trxId = `INV-${Math.floor(Math.random() * 1000000)}`;
+    // Generate Order ID a la Bot (ATHON-WEB-...)
+    const orderId = `ATHON-WEB-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
 
     const payload = {
-      project: config.pakasir.project, 
-      order_id: trxId,
-      amount: prices[plan],
+      project: config.pakasir.project,
+      order_id: orderId,
+      amount: product.price,
       api_key: config.pakasir.secret,
-      metadata: { plan: plan }
+      
+      // Data tambahan seperti di bot
+      customer_name: name || `User Web`,
+      customer_email: email || `user-${orderId}@athon.id`,
+      description: `Athon Hosting - ${product.name}`,
+      qris_name: config.pakasir.qris_name,
+      
+      // Metadata penting buat Webhook nanti
+      metadata: { 
+          plan: plan,
+          user_email: email || `user-${orderId}@athon.id`,
+          user_name: name || 'Customer'
+      }
     };
 
-    console.log("🚀 Request ke Pakasir:", payload);
+    console.log("🚀 Request Pakasir:", payload);
 
     const res = await fetch(config.pakasir.url, {
       method: 'POST',
@@ -34,26 +47,22 @@ export async function POST(req) {
         return NextResponse.json({ error: "Gagal dari Pakasir", details: data }, { status: 500 });
     }
 
-    // --- BAGIAN FIX QRIS ---
-    const qrRaw = data.payment.payment_number; // String mentah QRIS
+    const qrRaw = data.payment.payment_number;
     
-    // Kita generate gambar QR High Quality di sini
+    // Generate QR Image (Buffer -> Base64) persis settingan bot
     const qrImage = await QRCode.toDataURL(qrRaw, {
-        errorCorrectionLevel: 'M', // Level M paling cocok buat QRIS
-        margin: 2,                 // Memberi jarak putih biar kamera gampang baca
-        width: 400,                // Resolusi besar biar tajam
-        color: {
-            dark: '#000000',
-            light: '#ffffff'
-        }
+        width: 400,
+        margin: 2,
+        errorCorrectionLevel: 'H', // High error correction seperti bot
+        color: { dark: '#000000', light: '#ffffff' }
     });
 
     return NextResponse.json({ 
         success: true, 
-        qr_image: qrImage, // Mengirim gambar langsung
-        qr_raw: qrRaw,     // Mengirim string mentah (backup)
+        qr_image: qrImage,
         amount: data.payment.total_payment,
-        trx_id: trxId
+        trx_id: orderId,
+        expired_at: data.payment.expired_at
     });
 
   } catch (error) {
