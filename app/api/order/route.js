@@ -1,7 +1,7 @@
 // app/api/order/route.js
 import { NextResponse } from 'next/server';
 import config from '../../config';
-import QRCode from 'qrcode'; // Import library yang baru diinstall
+import QRCode from 'qrcode'; 
 
 export async function POST(req) {
   try {
