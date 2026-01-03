@@ -14,7 +14,6 @@ export default function Home() {
   return (
     <main className="container">
       <h1>⚡ Panel Pterodactyl</h1>
-
       <div className="cards">
         <div className="card">
           <h2>Basic</h2>
