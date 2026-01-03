@@ -18,10 +18,10 @@ export default function Home() {
       const data = await res.json();
 
       if (data.payment_url) {
-        // Redirect ke link QRIS
         window.location.href = data.payment_url;
       } else {
-        alert("Gagal order: " + (data.error || "Unknown error"));
+        // Tampilkan pesan error lengkap dari server
+        alert(`❌ Gagal Order!\n\nPesan: ${data.message || data.error}\nDetail: ${JSON.stringify(data.details)}`);
         setLoading(false);
       }
     } catch (e) {
