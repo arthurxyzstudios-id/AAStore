@@ -16,7 +16,7 @@ export async function POST(req) {
   const spec = plans[plan];
   if (!spec) return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
 
-  // Create user
+  // Create user Pterodactyl
   const userRes = await fetch(`${process.env.PTERODACTYL_URL}/api/application/users`, {
     method: 'POST',
     headers: {
