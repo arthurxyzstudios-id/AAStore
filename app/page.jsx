@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
-  const [qrImage, setQrImage] = useState(null); // Ganti jadi qrImage
+  const [qrImage, setQrImage] = useState(null);
   const [status, setStatus] = useState("");
   const [trxId, setTrxId] = useState("");
 
