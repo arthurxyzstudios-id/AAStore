@@ -1,6 +1,6 @@
 "use client";
 import { useState } from 'react';
-import config from '../../config';
+import config from '../config';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
