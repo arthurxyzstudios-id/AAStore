@@ -15,12 +15,10 @@ export async function POST(req) {
       amount: prices[plan],
       description: `Panel ${plan}`,
       metadata: { plan },
-      callback_url: "https://https://aa-store-two.vercel.app/api/webhook"
+      callback_url: `https://${process.env.VERCEL_URL}/api/webhook`
     })
   });
 
   const data = await res.json();
-
-  // FIX: pakai NextResponse
   return NextResponse.json({ payment_url: data.payment_url });
 }
