@@ -1,88 +1,62 @@
-"use client";
-import { useState } from 'react';
-import config from '../config';
+import { NextResponse } from 'next/server';
+import config from '../../config';
 
-export default function Home() {
-  const [loading, setLoading] = useState(false);
-  const [qrCode, setQrCode] = useState(null); // State buat nyimpen gambar QR
-  const [paymentData, setPaymentData] = useState(null);
+export async function POST(req) {
+  try {
+    const { plan } = await req.json();
 
-  async function buy(plan) {
-    if (loading) return;
-    setLoading(true);
-    setQrCode(null); // Reset QR lama
-
-    try {
-      const res = await fetch('/api/order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plan })
-      });
-
-      const data = await res.json();
-
-      if (data.success && data.qr_string) {
-        // Tampilkan QR Code di halaman ini
-        setPaymentData(data);
-        setQrCode(data.qr_string);
-      } else {
-        alert("Gagal: " + JSON.stringify(data));
-      }
-    } catch (e) {
-      alert("Error: " + e.message);
-    } finally {
-      setLoading(false);
+    // 1. Cek Plan & Harga
+    const prices = { basic: 10000, premium: 40000 };
+    if (!prices[plan]) {
+        return NextResponse.json({ error: "Plan tidak valid" }, { status: 400 });
     }
+
+    // 2. Bikin ID Transaksi
+    const trxId = `INV-${Math.floor(Math.random() * 1000000)}`;
+
+    // 3. Susun Data (HARDCODE PROJECT NAME)
+    const payload = {
+      // Wajib diisi string 'depodomain' (kecuali lu udah ganti nama project di dashboard Pakasir)
+      project: 'arthurxyz-studios', 
+      
+      order_id: trxId,
+      amount: prices[plan],
+      api_key: config.pakasir.secret // Pastikan ini ngambil API Key yang bener dari config
+    };
+
+    console.log("🚀 Mengirim Request ke Pakasir:", payload);
+
+    // 4. Kirim ke Pakasir (Format JSON)
+    const res = await fetch(config.pakasir.url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+    console.log("📦 Respon Pakasir:", data);
+
+    // 5. Validasi Respon
+    // Kalau gagal, kita lempar error biar tau alasannya
+    if (!data.payment) {
+        return NextResponse.json({ 
+            error: "Gagal ambil QRIS", 
+            details: data 
+        }, { status: 500 });
+    }
+
+    // 6. Sukses - Kirim data ke Frontend
+    return NextResponse.json({ 
+        success: true, 
+        qr_string: data.payment.payment_number, // Ini kode QR mentah buat di-generate jadi gambar
+        amount: data.payment.total_payment,
+        trx_id: trxId
+    });
+
+  } catch (error) {
+    console.error("🔥 Server Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
-  return (
-    <main className="main-container">
-      <div className="content">
-        <h1 className="title">⚡ STORE PANEL</h1>
-
-        {/* JIKA QR CODE SUDAH MUNCUL */}
-        {qrCode ? (
-           <div className="card" style={{margin:'0 auto', width:'400px', borderColor:'#4ade80'}}>
-             <h2>Silakan Scan QRIS</h2>
-             <p style={{marginBottom:'10px'}}>Total: Rp {paymentData.amount.toLocaleString()}</p>
-             
-             {/* Generate Gambar QR dari String Pakasir */}
-             <div style={{background:'white', padding:'10px', borderRadius:'10px', margin:'20px 0'}}>
-                <img 
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrCode)}`} 
-                  alt="QRIS Code" 
-                  style={{width:'100%'}}
-                />
-             </div>
-             
-             <p style={{fontSize:'0.8rem', color:'#94a3b8'}}>Order ID: {paymentData.trx_id}</p>
-             <button onClick={() => window.location.reload()} className="btn" style={{marginTop:'20px'}}>
-               Refresh / Transaksi Baru
-             </button>
-           </div>
-        ) : (
-          /* PILIHAN PLAN */
-          <div className="grid">
-            <div className="card">
-              <div className="badge">POPULAR</div>
-              <h2>Basic Plan</h2>
-              <div className="price">Rp 10.000</div>
-              <button onClick={() => buy('basic')} disabled={loading} className="btn">
-                {loading ? 'Loading...' : 'Beli via QRIS'}
-              </button>
-            </div>
-
-            <div className="card premium">
-              <div className="badge gold">SULTAN</div>
-              <h2>Premium Plan</h2>
-              <div className="price">Rp 40.000</div>
-              <button onClick={() => buy('premium')} disabled={loading} className="btn btn-primary">
-                {loading ? 'Loading...' : 'Beli via QRIS'}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </main>
-  );
 }
