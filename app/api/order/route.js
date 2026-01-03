@@ -1,12 +1,11 @@
 // app/api/order/route.js
 import { NextResponse } from 'next/server';
 import config from '../../config';
+import QRCode from 'qrcode'; // Import library yang baru diinstall
 
 export async function POST(req) {
   try {
     const { plan } = await req.json();
-    
-    // Konfigurasi Harga
     const prices = { basic: 10000, premium: 40000 };
     
     if (!prices[plan]) return NextResponse.json({ error: "Plan tidak valid" }, { status: 400 });
@@ -18,7 +17,6 @@ export async function POST(req) {
       order_id: trxId,
       amount: prices[plan],
       api_key: config.pakasir.secret,
-      // Metadata buat dikirim balik ke webhook nanti
       metadata: { plan: plan }
     };
 
@@ -36,14 +34,30 @@ export async function POST(req) {
         return NextResponse.json({ error: "Gagal dari Pakasir", details: data }, { status: 500 });
     }
 
+    // --- BAGIAN FIX QRIS ---
+    const qrRaw = data.payment.payment_number; // String mentah QRIS
+    
+    // Kita generate gambar QR High Quality di sini
+    const qrImage = await QRCode.toDataURL(qrRaw, {
+        errorCorrectionLevel: 'M', // Level M paling cocok buat QRIS
+        margin: 2,                 // Memberi jarak putih biar kamera gampang baca
+        width: 400,                // Resolusi besar biar tajam
+        color: {
+            dark: '#000000',
+            light: '#ffffff'
+        }
+    });
+
     return NextResponse.json({ 
         success: true, 
-        qr_string: data.payment.payment_number, 
+        qr_image: qrImage, // Mengirim gambar langsung
+        qr_raw: qrRaw,     // Mengirim string mentah (backup)
         amount: data.payment.total_payment,
         trx_id: trxId
     });
 
   } catch (error) {
+    console.error(error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
