@@ -3,7 +3,7 @@ const config = {
   pakasir: {
     // Masukin API Key Pakasir lu di dalem kutip '...'
     secret: 'xmCaAM7PILQ1qU3nQ2q3T58r7m8UXOCM', 
-    url: 'https://app.pakasir.com/api/transactioncreate'
+    url: 'https://app.pakasir.com/api/transactioncreate/qris'
   },
 
   // --- SETTING PTERODACTYL ---
