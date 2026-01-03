@@ -3,10 +3,7 @@ import { NextResponse } from 'next/server';
 export async function POST(req) {
   const { plan } = await req.json();
 
-  const prices = {
-    basic: 10000,
-    premium: 40000
-  };
+  const prices = { basic: 10000, premium: 40000 };
 
   const res = await fetch('https://app.pakasir.com/api/invoice', {
     method: 'POST',
@@ -16,10 +13,12 @@ export async function POST(req) {
     },
     body: JSON.stringify({
       amount: prices[plan],
-      description: `Panel ${plan}`
+      description: `Panel ${plan}`,
+      metadata: { plan },
+      callback_url: "https://domain-vercel-lo.vercel.app/api/webhook"
     })
   });
 
   const data = await res.json();
-  return NextResponse.json({ payment_url: data.payment_url });
+  return Response.json({ payment_url: data.payment_url });
 }
