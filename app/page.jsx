@@ -1,62 +1,95 @@
-import { NextResponse } from 'next/server';
-import config from '../../config';
+// app/page.jsx
+"use client";
+import { useState } from 'react';
 
-export async function POST(req) {
-  try {
-    const { plan } = await req.json();
+export default function Home() {
+  const [loading, setLoading] = useState(false);
+  const [qrCode, setQrCode] = useState(null);
+  const [status, setStatus] = useState("");
+  const [trxId, setTrxId] = useState("");
 
-    // 1. Cek Plan & Harga
-    const prices = { basic: 10000, premium: 40000 };
-    if (!prices[plan]) {
-        return NextResponse.json({ error: "Plan tidak valid" }, { status: 400 });
+  const handleOrder = async (plan) => {
+    setLoading(true);
+    setStatus("Sedang membuat tagihan...");
+    setQrCode(null);
+
+    try {
+      const res = await fetch('/api/order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan })
+      });
+
+      const data = await res.json();
+
+      if (data.success && data.qr_string) {
+        // Generate gambar QR dari string
+        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(data.qr_string)}`;
+        setQrCode(qrImageUrl);
+        setTrxId(data.trx_id);
+        setStatus(`Silakan Scan QRIS (Rp ${data.amount.toLocaleString('id-ID')})`);
+      } else {
+        setStatus(`Gagal: ${data.error || 'Terjadi kesalahan'}`);
+      }
+    } catch (error) {
+      setStatus(`Error: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // 2. Bikin ID Transaksi
-    const trxId = `INV-${Math.floor(Math.random() * 1000000)}`;
+  return (
+    <div className="main-container">
+      <div className="content">
+        <h1 className="title">AA STORE</h1>
+        <p className="subtitle">Hosting Pterodactyl Otomatis</p>
 
-    // 3. Susun Data (HARDCODE PROJECT NAME)
-    const payload = {
-      // Wajib diisi string 'depodomain' (kecuali lu udah ganti nama project di dashboard Pakasir)
-      project: 'arthurxyz-studios', 
-      
-      order_id: trxId,
-      amount: prices[plan],
-      api_key: config.pakasir.secret // Pastikan ini ngambil API Key yang bener dari config
-    };
+        {qrCode ? (
+          <div className="card" style={{ margin: '0 auto', textAlign: 'center', maxWidth: '400px' }}>
+            <h2 style={{ marginBottom: '10px' }}>Pembayaran</h2>
+            <p style={{ color: '#fbbf24', fontWeight: 'bold' }}>{status}</p>
+            <div style={{ background: 'white', padding: '10px', margin: '20px auto', width: 'fit-content', borderRadius: '10px' }}>
+                <img src={qrCode} alt="QRIS" />
+            </div>
+            <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>Order ID: {trxId}</p>
+            <p style={{ marginTop: '10px', fontSize: '0.9rem' }}>Server akan otomatis aktif setelah pembayaran berhasil.</p>
+            <button className="btn btn-primary" onClick={() => window.location.reload()} style={{ marginTop: '20px' }}>
+              Kembali
+            </button>
+          </div>
+        ) : (
+          <div className="grid">
+            {/* PLAN BASIC */}
+            <div className="card">
+              <h2>Basic Plan</h2>
+              <div className="price">Rp 10.000<span>/bulan</span></div>
+              <ul className="features">
+                <li>RAM: 2 GB</li>
+                <li>CPU: 100%</li>
+                <li>Disk: 10 GB</li>
+              </ul>
+              <button className="btn" onClick={() => handleOrder('basic')} disabled={loading}>
+                {loading ? 'Loading...' : 'Beli Basic'}
+              </button>
+            </div>
 
-    console.log("🚀 Mengirim Request ke Pakasir:", payload);
-
-    // 4. Kirim ke Pakasir (Format JSON)
-    const res = await fetch(config.pakasir.url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const data = await res.json();
-    console.log("📦 Respon Pakasir:", data);
-
-    // 5. Validasi Respon
-    // Kalau gagal, kita lempar error biar tau alasannya
-    if (!data.payment) {
-        return NextResponse.json({ 
-            error: "Gagal ambil QRIS", 
-            details: data 
-        }, { status: 500 });
-    }
-
-    // 6. Sukses - Kirim data ke Frontend
-    return NextResponse.json({ 
-        success: true, 
-        qr_string: data.payment.payment_number, // Ini kode QR mentah buat di-generate jadi gambar
-        amount: data.payment.total_payment,
-        trx_id: trxId
-    });
-
-  } catch (error) {
-    console.error("🔥 Server Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
+            {/* PLAN PREMIUM */}
+            <div className="card premium">
+              <div className="badge gold">POPULAR</div>
+              <h2>Premium Plan</h2>
+              <div className="price">Rp 40.000<span>/bulan</span></div>
+              <ul className="features">
+                <li>RAM: 8 GB</li>
+                <li>CPU: 300%</li>
+                <li>Disk: 40 GB</li>
+              </ul>
+              <button className="btn btn-primary" onClick={() => handleOrder('premium')} disabled={loading}>
+                {loading ? 'Loading...' : 'Beli Premium'}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
