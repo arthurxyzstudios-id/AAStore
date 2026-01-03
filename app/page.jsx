@@ -1,3 +1,5 @@
+"use client";
+
 export default function Home() {
   async function buy(plan) {
     const res = await fetch('/api/order', {
