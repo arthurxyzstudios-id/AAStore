@@ -4,14 +4,14 @@ import { useState } from 'react';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
-  const [qrCode, setQrCode] = useState(null);
+  const [qrImage, setQrImage] = useState(null); // Ganti jadi qrImage
   const [status, setStatus] = useState("");
   const [trxId, setTrxId] = useState("");
 
   const handleOrder = async (plan) => {
     setLoading(true);
     setStatus("Sedang membuat tagihan...");
-    setQrCode(null);
+    setQrImage(null);
 
     try {
       const res = await fetch('/api/order', {
@@ -22,12 +22,10 @@ export default function Home() {
 
       const data = await res.json();
 
-      if (data.success && data.qr_string) {
-        // Generate gambar QR dari string
-        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(data.qr_string)}`;
-        setQrCode(qrImageUrl);
+      if (data.success && data.qr_image) {
+        setQrImage(data.qr_image); // Langsung pakai gambar dari server
         setTrxId(data.trx_id);
-        setStatus(`Silakan Scan QRIS (Rp ${data.amount.toLocaleString('id-ID')})`);
+        setStatus(`Scan QRIS di bawah (Rp ${data.amount.toLocaleString('id-ID')})`);
       } else {
         setStatus(`Gagal: ${data.error || 'Terjadi kesalahan'}`);
       }
@@ -44,15 +42,19 @@ export default function Home() {
         <h1 className="title">AA STORE</h1>
         <p className="subtitle">Hosting Pterodactyl Otomatis</p>
 
-        {qrCode ? (
+        {qrImage ? (
           <div className="card" style={{ margin: '0 auto', textAlign: 'center', maxWidth: '400px' }}>
             <h2 style={{ marginBottom: '10px' }}>Pembayaran</h2>
             <p style={{ color: '#fbbf24', fontWeight: 'bold' }}>{status}</p>
-            <div style={{ background: 'white', padding: '10px', margin: '20px auto', width: 'fit-content', borderRadius: '10px' }}>
-                <img src={qrCode} alt="QRIS" />
+            
+            {/* Tampilan QR */}
+            <div style={{ background: 'white', padding: '15px', margin: '20px auto', width: 'fit-content', borderRadius: '15px' }}>
+                <img src={qrImage} alt="QRIS" style={{ width: '100%', maxWidth: '250px', display: 'block' }} />
             </div>
+
             <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>Order ID: {trxId}</p>
             <p style={{ marginTop: '10px', fontSize: '0.9rem' }}>Server akan otomatis aktif setelah pembayaran berhasil.</p>
+            
             <button className="btn btn-primary" onClick={() => window.location.reload()} style={{ marginTop: '20px' }}>
               Kembali
             </button>
